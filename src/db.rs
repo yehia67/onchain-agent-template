@@ -13,3 +13,4 @@ pub async fn save_message(pool: &Pool<Postgres>, role: &str, content: &str) -> s
         .await?;
     Ok(())
 }
+
