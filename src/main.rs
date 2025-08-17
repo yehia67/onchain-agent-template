@@ -1,10 +1,12 @@
 mod anthropic;
 mod db;
 mod personality;
+mod tools;
 
 use db::{get_db_pool, save_message};
 use anthropic::call_anthropic_with_personality;
 use personality::load_personality;
+use tools::get_tools_as_json;
 use std::io::{self, Write};
 use std::path::Path;
 
@@ -23,6 +25,16 @@ async fn main() -> anyhow::Result<()> {
         Err(e) => {
             println!("Failed to load personality: {}", e);
             return Err(anyhow::anyhow!("Failed to load personality"));
+        }
+    };
+    
+    // Load available tools
+    match get_tools_as_json() {
+        Ok(tools_json) => {
+            println!("Loaded tools: {}", tools_json);
+        },
+        Err(e) => {
+            println!("Failed to load tools: {}", e);
         }
     };
     
