@@ -1,11 +1,13 @@
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::env;
+use crate::personality::Personality;
 
 #[derive(Serialize)]
 struct AnthropicRequest {
     model: String,
     max_tokens: u32,
+    system: Option<String>,
     messages: Vec<Message>,
 }
 
@@ -58,19 +60,51 @@ struct AnthropicError {
 }
 
 pub async fn call_anthropic(prompt: &str) -> anyhow::Result<String> {
+    // Use default system prompt
+    call_anthropic_with_personality(prompt, None).await
+}
+
+pub async fn call_anthropic_with_personality(prompt: &str, personality: Option<&Personality>) -> anyhow::Result<String> {
     let api_key = env::var("ANTHROPIC_API_KEY")?;
     let client = Client::new();
 
+    // Create messages vector
+    let mut messages = Vec::new();
+    
+    // Create system prompt with personality if provided
+    let system_prompt = if let Some(persona) = personality {
+        Some(format!(
+            "You are {}, {}. \n\n\
+            Style: \n\
+            - Tone: {} \n\
+            - Formality: {} \n\
+            - Domain Focus: {} \n\n\
+            Rules: \n{}",
+            persona.name,
+            persona.role,
+            persona.style.tone,
+            persona.style.formality,
+            persona.style.domain_focus.join(", "),
+            persona.rules.iter().map(|r| format!("- {}", r)).collect::<Vec<_>>().join("\n")
+        ))
+    } else {
+        None
+    };
+    
+    // Add user message
+    messages.push(Message {
+        role: "user".to_string(),
+        content: vec![ContentBlock {
+            r#type: "text".to_string(),
+            text: prompt.to_string(),
+        }],
+    });
+    
     let req = AnthropicRequest {
         model: "claude-3-opus-20240229".to_string(),
         max_tokens: 256,
-        messages: vec![Message {
-            role: "user".to_string(),
-            content: vec![ContentBlock {
-                r#type: "text".to_string(),
-                text: prompt.to_string(),
-            }],
-        }],
+        system: system_prompt,
+        messages,
     };
 
     let response = client

@@ -1,16 +1,33 @@
 mod anthropic;
 mod db;
+mod personality;
 
 use db::{get_db_pool, save_message};
-use anthropic::call_anthropic;
+use anthropic::call_anthropic_with_personality;
+use personality::load_personality;
 use std::io::{self, Write};
+use std::path::Path;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenv::dotenv().ok();
     let pool = get_db_pool().await;
     
-    println!("Welcome to Agent Friend! Type 'exit' to quit.");
+    // Load personality
+    let personality_path = Path::new("assets/personality.json");
+    let personality = match load_personality(personality_path.to_str().unwrap()) {
+        Ok(p) => {
+            println!("Loaded personality: {} - {}", p.name, p.role);
+            p
+        },
+        Err(e) => {
+            println!("Failed to load personality: {}", e);
+            return Err(anyhow::anyhow!("Failed to load personality"));
+        }
+    };
+    
+    println!("Welcome to Agent Friend! I'm {}, your {}.", personality.name, personality.role);
+    println!("Type 'exit' to quit.");
     
     loop {
         // Prompt for user input
@@ -36,17 +53,17 @@ async fn main() -> anyhow::Result<()> {
         // Save user message to database
         save_message(&pool, "user", user_input).await?;
         
-        // Get response from Claude
-        print!("Agent is thinking...");
+        // Get response from Claude with personality
+        print!("{} is thinking...", personality.name);
         io::stdout().flush()?;
-        let reply = call_anthropic(user_input).await?;
+        let reply = call_anthropic_with_personality(user_input, Some(&personality)).await?;
         println!("\r"); // Clear the "thinking" message
         
         // Save assistant message to database
         save_message(&pool, "assistant", &reply).await?;
         
         // Display the response
-        println!("Agent: {}", reply);
+        println!("{}: {}", personality.name, reply);
     }
     
     Ok(())
