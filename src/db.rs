@@ -1,8 +1,24 @@
 use sqlx::{Pool, Postgres};
 
-pub async fn get_db_pool() -> Pool<Postgres> {
-    let db_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    sqlx::PgPool::connect(&db_url).await.expect("Failed to connect to Postgres")
+pub async fn get_db_pool() -> Option<Pool<Postgres>> {
+    match std::env::var("DATABASE_URL") {
+        Ok(db_url) => {
+            match sqlx::PgPool::connect(&db_url).await {
+                Ok(pool) => {
+                    println!("Successfully connected to database");
+                    Some(pool)
+                },
+                Err(e) => {
+                    eprintln!("Failed to connect to Postgres: {}", e);
+                    None
+                }
+            }
+        },
+        Err(e) => {
+            eprintln!("DATABASE_URL not set: {}", e);
+            None
+        }
+    }
 }
 
 pub async fn save_message(pool: &Pool<Postgres>, role: &str, content: &str) -> sqlx::Result<()> {

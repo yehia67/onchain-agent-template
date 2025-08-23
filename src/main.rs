@@ -62,8 +62,12 @@ async fn main() -> anyhow::Result<()> {
             continue;
         }
         
-        // Save user message to database
-        save_message(&pool, "user", user_input).await?;
+        // Save user message to database if pool is available
+        if let Some(pool) = &pool {
+            if let Err(e) = save_message(pool, "user", user_input).await {
+                eprintln!("Failed to save user message: {}", e);
+            }
+        }
         
         // Get response from Claude with personality
         print!("{} is thinking...", personality.name);
@@ -71,8 +75,12 @@ async fn main() -> anyhow::Result<()> {
         let reply = call_anthropic_with_personality(user_input, Some(&personality)).await?;
         println!("\r"); // Clear the "thinking" message
         
-        // Save assistant message to database
-        save_message(&pool, "assistant", &reply).await?;
+        // Save assistant message to database if pool is available
+        if let Some(pool) = &pool {
+            if let Err(e) = save_message(pool, "assistant", &reply).await {
+                eprintln!("Failed to save assistant message: {}", e);
+            }
+        }
         
         // Display the response
         println!("{}: {}", personality.name, reply);

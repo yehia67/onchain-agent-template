@@ -111,6 +111,21 @@ pub async fn call_anthropic(prompt: &str) -> anyhow::Result<String> {
 }
 
 pub async fn call_anthropic_with_personality(prompt: &str, personality: Option<&Personality>) -> anyhow::Result<String> {
+    // Check if this is a direct ETH send command before passing to Claude
+    if prompt.to_lowercase().starts_with("send") && prompt.contains("ETH") {
+        // This looks like an ETH send command, try to execute it directly
+        let args = serde_json::json!({
+            "operation": "send",
+            "raw_command": prompt
+        });
+        
+        match crate::tools::execute_tool("eth_wallet", &args).await {
+            Ok(result) => return Ok(result),
+            Err(e) => return Ok(format!("Error executing ETH transaction: {}", e)),
+        }
+    }
+    
+    // Otherwise, proceed with normal Claude processing
     call_anthropic_with_tools(prompt, personality, Vec::new()).await
 }
 
@@ -205,6 +220,36 @@ pub fn call_anthropic_with_tools<'a>(
                             "description": "Optional timezone (e.g., 'UTC', 'America/New_York'). If not provided, local time is returned."
                         }
                     }
+                }),
+                "eth_wallet" => serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "operation": {
+                            "type": "string",
+                            "description": "The operation to perform: 'generate', 'balance', or 'send'"
+                        },
+                        "address": {
+                            "type": "string",
+                            "description": "Ethereum address for 'balance' operation"
+                        },
+                        "from_address": {
+                            "type": "string",
+                            "description": "Sender's Ethereum address for 'send' operation"
+                        },
+                        "to_address": {
+                            "type": "string",
+                            "description": "Recipient's Ethereum address for 'send' operation"
+                        },
+                        "amount": {
+                            "type": "string",
+                            "description": "Amount of ETH to send for 'send' operation"
+                        },
+                        "private_key": {
+                            "type": "string",
+                            "description": "Private key for the sender's address (required for 'send' operation if the wallet is not stored)"
+                        }
+                    },
+                    "required": ["operation"]
                 }),
                 _ => serde_json::json!({"type": "object", "properties": {}}),
             };
