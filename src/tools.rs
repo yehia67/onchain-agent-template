@@ -149,12 +149,15 @@ lazy_static::lazy_static! {
 }
 
 // Sepolia RPC URL
-const SEPOLIA_RPC_URL: &str = "https://1rpc.io/sepolia";
+fn get_sepolia_rpc_url() -> String {
+    env::var("SEPOLIA_RPC_URL")
+        .expect("SEPOLIA_RPC_URL must be set")
+}
 
 // Get provider for Ethereum network
 async fn get_provider() -> anyhow::Result<Provider<Http>> {
     // Use environment variable if available, otherwise use default
-    let rpc_url = env::var("ETH_RPC_URL").unwrap_or_else(|_| SEPOLIA_RPC_URL.to_string());
+    let rpc_url = env::var("ETH_RPC_URL").unwrap_or_else(|_| get_sepolia_rpc_url());
     
     // Create provider
     let provider = Provider::<Http>::try_from(rpc_url)?;
@@ -209,7 +212,7 @@ async fn eth_check_balance(address: &str) -> anyhow::Result<String> {
             // Convert from Wei to ETH (1 ETH = 10^18 Wei)
             let eth_balance = balance.as_u128() as f64 / 1_000_000_000_000_000_000.0;
             Ok(format!("Balance for address {:?}: {:.6} ETH (via {})", 
-                      address, eth_balance, SEPOLIA_RPC_URL))
+                      address, eth_balance, get_sepolia_rpc_url()))
         },
         Err(e) => {
             // Fallback to mock data if there's an error
@@ -368,7 +371,7 @@ async fn eth_send_eth(from_address: &str, to_address: &str, amount: &str, provid
                                           gas_price.as_u128() / 1_000_000_000, // Convert to gwei
                                           receipt_data.gas_used.unwrap_or_default(),
                                           receipt_data.block_number.unwrap_or_default(),
-                                          SEPOLIA_RPC_URL,
+                                          get_sepolia_rpc_url(),
                                           tx_hash))
                             } else {
                                 // Transaction was submitted but no receipt was found
@@ -377,7 +380,7 @@ async fn eth_send_eth(from_address: &str, to_address: &str, amount: &str, provid
                                           Network: Sepolia (via {})\n\
                                           Transaction Hash: {:?}", 
                                           amount_eth, from_address, to_address,
-                                          SEPOLIA_RPC_URL,
+                                          get_sepolia_rpc_url(),
                                           tx_hash))
                             }
                         },
@@ -400,7 +403,7 @@ async fn eth_send_eth(from_address: &str, to_address: &str, amount: &str, provid
                               amount_eth, from_address, to_address, 
                               gas_price.as_u128() / 1_000_000_000, // Convert to gwei
                               gas_estimate,
-                              SEPOLIA_RPC_URL,
+                              get_sepolia_rpc_url(),
                               tx_hash))
                 }
             }
