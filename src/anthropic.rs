@@ -23,7 +23,7 @@ struct AnthropicTool {
 }
 
 #[derive(Serialize, Clone)]
-struct Message {
+pub struct Message {
     role: String,
     content: Vec<ContentBlock>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -64,16 +64,8 @@ struct AnthropicResponse {
     content: Vec<ContentBlock>,
     #[serde(default)]
     tool_calls: Vec<AnthropicToolCallResponse>,
-    id: String,
-    model: String,
-    #[serde(rename = "type")]
-    response_type: String,
-    #[serde(default)]
-    usage: Option<AnthropicUsage>,
-    #[serde(default)]
-    stop_reason: Option<String>,
-    #[serde(default)]
-    stop_sequence: Option<String>,
+   
+ 
 }
 
 #[derive(Deserialize, Debug)]
@@ -99,16 +91,8 @@ struct AnthropicError {
     message: String,
 }
 
-#[derive(Deserialize, Debug, Default)]
-struct AnthropicUsage {
-    input_tokens: Option<u32>,
-    output_tokens: Option<u32>,
-}
 
-pub async fn call_anthropic(prompt: &str) -> anyhow::Result<String> {
-    // Use default system prompt
-    call_anthropic_with_personality(prompt, None).await
-}
+
 
 pub async fn call_anthropic_with_personality(prompt: &str, personality: Option<&Personality>) -> anyhow::Result<String> {
     // Check if this is a direct ETH send command before passing to Claude
